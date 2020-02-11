@@ -12,10 +12,12 @@ public class TouchControl : MonoBehaviour
     float distanceFingers;
     Quaternion currentRotationCube;
     float angleFingers;
+    float rotationSpeed = 20;
 
     // Start is called before the first frame update
     void Start()
     {
+        Screen.orientation = ScreenOrientation.LandscapeLeft;
         my_camera = Camera.main;
         selectedObject = null;
         timer = 0f;
@@ -43,8 +45,7 @@ public class TouchControl : MonoBehaviour
                 }
                 Ray my_ray = my_camera.ScreenPointToRay(touch.position);
                 Debug.DrawRay(my_ray.origin, 20 * my_ray.direction);
-                RaycastHit info_on_hit;
-                if (Physics.Raycast(my_ray, out info_on_hit))
+                if (Physics.Raycast(my_ray, out RaycastHit info_on_hit))
                 {
                     if (touch.phase == TouchPhase.Began)
                     {
@@ -74,14 +75,18 @@ public class TouchControl : MonoBehaviour
                         }
                     }
                 }
-                else if(selectedObject != null && isTap && touch.phase == TouchPhase.Ended)
+                else if (selectedObject != null && isTap && touch.phase == TouchPhase.Ended)
                 {
                     selectedObject.Unselect();
                     selectedObject = null;
                 }
-                if(touch.phase == TouchPhase.Moved && selectedObject != null && !isTap)
+                if (touch.phase == TouchPhase.Moved && selectedObject != null && !isTap)
                 {
-                    selectedObject.MoveTo(my_camera.ScreenToWorldPoint(new Vector3(touch.position.x, touch.position.y, distance)));
+                    selectedObject.MoveTo(my_ray.GetPoint(distance));
+                }
+                else if(selectedObject == null)
+                {
+
                 }
             }
         }
@@ -93,7 +98,19 @@ public class TouchControl : MonoBehaviour
                 Touch finger2 = Input.GetTouch(1);
 
                 float newDistanceFingers = Vector2.Distance(finger1.position, finger2.position);
-                float newAngleFingers = Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.y - finger1.position.y);
+
+                float rotateAngle = 0;
+                float newAngleFingers = Mathf.Abs(Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.x - finger1.position.x));
+                if(newAngleFingers > angleFingers)
+                {
+                    rotateAngle = newAngleFingers - angleFingers;
+                }
+                else if(angleFingers > newAngleFingers)
+                {
+                    rotateAngle = -(angleFingers - newAngleFingers);
+                }
+                    angleFingers = newAngleFingers;
+
 
                 if (distanceFingers > 0 && newDistanceFingers > distanceFingers)
                     selectedObject.ScaleUp((newDistanceFingers - distanceFingers) / 100);
@@ -102,23 +119,21 @@ public class TouchControl : MonoBehaviour
 
                 distanceFingers = newDistanceFingers;
 
-                if(finger1.phase == TouchPhase.Ended || finger1.phase == TouchPhase.Ended)
+                if(finger1.phase == TouchPhase.Ended || finger2.phase == TouchPhase.Ended)
                 {
                     distanceFingers = 0;
                     angleFingers = 0;
-                    new WaitForSeconds(0.2f);
                 }
 
-                if (finger1.phase == TouchPhase.Began || finger1.phase == TouchPhase.Began)
+                if (finger1.phase == TouchPhase.Began || finger2.phase == TouchPhase.Began)
                 {
                     currentRotationCube = selectedObject.transform.rotation;
-                    angleFingers = Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.y - finger1.position.y);
+                    angleFingers = Mathf.Abs(Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.x - finger1.position.x));
                 }
 
-                if (finger1.phase == TouchPhase.Moved || finger1.phase == TouchPhase.Moved)
+                if (finger1.phase == TouchPhase.Moved || finger2.phase == TouchPhase.Moved)
                 {
-                    float rotateAngle = newAngleFingers - angleFingers;
-                    Quaternion newRotationCube = Quaternion.AngleAxis(rotateAngle, my_camera.transform.forward);
+                    Quaternion newRotationCube = Quaternion.AngleAxis(rotateAngle * rotationSpeed, my_camera.transform.forward);
                     selectedObject.transform.rotation = currentRotationCube * newRotationCube;
                     currentRotationCube = selectedObject.transform.rotation;
                 }

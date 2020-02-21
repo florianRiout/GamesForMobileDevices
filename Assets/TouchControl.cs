@@ -10,11 +10,16 @@ public class TouchControl : MonoBehaviour
     bool isTap;
     float distance;
     float distanceFingers;
-    Quaternion currentRotationCube;
+    float distanceOrbit = 10;
     float angleFingers;
     float rotationSpeed = 20;
     Vector2 lastPositionFinger;
-    float cameraSpeed = 0.2f;
+    float cameraSpeed = 200f;
+    float xCursor;
+    float yCursor;
+    private Vector3 distanceVector;
+    public float zoomStep =10f;
+
 
     // Start is called before the first frame update
     void Start()
@@ -24,6 +29,13 @@ public class TouchControl : MonoBehaviour
         selectedObject = null;
         timer = 0f;
         isTap = true;
+
+        distanceVector = new Vector3(xCursor, yCursor, -distanceOrbit);
+        Vector2 angles = my_camera.transform.localEulerAngles;
+        xCursor = angles.x;
+        xCursor = angles.y;
+
+        Rotate(xCursor, yCursor);
     }
 
     // Update is called once per frame
@@ -35,6 +47,7 @@ public class TouchControl : MonoBehaviour
         {
             isTap = false;
         }
+
         if (Input.touchCount == 1)
         {
             List<Touch> touches = new List<Touch>(Input.touches);
@@ -94,20 +107,17 @@ public class TouchControl : MonoBehaviour
                     }
                     else if (touch.phase == TouchPhase.Moved)
                     {
-                        if (lastPositionFinger.x < touch.position.x)
-                            my_camera.transform.position = new Vector3(my_camera.transform.position.x + 1 * (lastPositionFinger.x - touch.position.x) * Time.deltaTime * cameraSpeed, my_camera.transform.position.y, my_camera.transform.position.z);
+                        Vector3 cursorVector = my_camera.ScreenToViewportPoint(touch.position) - my_camera.ScreenToViewportPoint(lastPositionFinger);
+                        xCursor += cursorVector.x * cameraSpeed;
+                        yCursor -= cursorVector.y * cameraSpeed;
 
-                        if (lastPositionFinger.x > touch.position.x)
-                            my_camera.transform.position = new Vector3(my_camera.transform.position.x - 1 * (touch.position.x - lastPositionFinger.x) * Time.deltaTime * cameraSpeed, my_camera.transform.position.y, my_camera.transform.position.z);
-
-                        if (lastPositionFinger.y < touch.position.y)
-                            my_camera.transform.position = new Vector3(my_camera.transform.position.x, my_camera.transform.position.y + 1 * (lastPositionFinger.y - touch.position.y) * Time.deltaTime * cameraSpeed, my_camera.transform.position.z);
-
-                        if (lastPositionFinger.y > touch.position.y)
-                            my_camera.transform.position = new Vector3(my_camera.transform.position.x, my_camera.transform.position.y - 1 * (touch.position.y - lastPositionFinger.y) * Time.deltaTime * cameraSpeed, my_camera.transform.position.z);
-
+                        Rotate(xCursor, yCursor);
                         lastPositionFinger = touch.position;
                     }
+                }
+                if (touch.phase == TouchPhase.Ended)
+                {
+
                 }
             }
         }
@@ -118,15 +128,18 @@ public class TouchControl : MonoBehaviour
 
             float newDistanceFingers = Vector2.Distance(finger1.position, finger2.position);
             float rotateAngle = 0;
+            float rotateAngleCamera = 0;
             float newAngleFingers = Mathf.Abs(Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.x - finger1.position.x));
 
             if(newAngleFingers > angleFingers)
             {
                 rotateAngle = newAngleFingers - angleFingers;
+                rotateAngleCamera = newAngleFingers - angleFingers;
             }
             else if(angleFingers > newAngleFingers)
             {
                 rotateAngle = -(angleFingers - newAngleFingers);
+                rotateAngleCamera = -(angleFingers - newAngleFingers);
             }
             angleFingers = newAngleFingers;
 
@@ -139,23 +152,33 @@ public class TouchControl : MonoBehaviour
 
                 if (finger1.phase == TouchPhase.Began || finger2.phase == TouchPhase.Began)
                 {
-                    currentRotationCube = selectedObject.transform.rotation;
                     angleFingers = Mathf.Abs(Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.x - finger1.position.x));
                 }
 
                 if (finger1.phase == TouchPhase.Moved || finger2.phase == TouchPhase.Moved)
                 {
                     Quaternion newRotationCube = Quaternion.AngleAxis(rotateAngle * rotationSpeed, my_camera.transform.forward);
-                    selectedObject.transform.rotation = currentRotationCube * newRotationCube;
-                    currentRotationCube = selectedObject.transform.rotation;
+                    selectedObject.transform.rotation *= newRotationCube;
                 }
             }
             else
             {
                 if (distanceFingers > 0 && newDistanceFingers > distanceFingers)
-                    my_camera.transform.position += my_camera.transform.forward * (newDistanceFingers - distanceFingers) / 100; 
+                    ZoomIn(newDistanceFingers - distanceFingers * 1.5f);
+                
                 else if (distanceFingers > 0 && newDistanceFingers < distanceFingers)
-                    my_camera.transform.position -= my_camera.transform.forward * (distanceFingers - newDistanceFingers) / 100;
+                    ZoomOut(newDistanceFingers - distanceFingers * 1.5f);
+
+                if (finger1.phase == TouchPhase.Began || finger2.phase == TouchPhase.Began)
+                {
+                    angleFingers = Mathf.Abs(Mathf.Atan2(finger2.position.y - finger1.position.y, finger2.position.x - finger1.position.x));
+                }
+
+                if (finger1.phase == TouchPhase.Moved || finger2.phase == TouchPhase.Moved)
+                {
+                    Quaternion newRotationCamera = Quaternion.AngleAxis(rotateAngleCamera * rotationSpeed, my_camera.transform.forward);
+                    my_camera.transform.rotation *= newRotationCamera;
+                }
             }
             distanceFingers = newDistanceFingers;
 
@@ -165,5 +188,29 @@ public class TouchControl : MonoBehaviour
                 angleFingers = 0;
             }
         }
+    }
+
+    void ZoomIn(float zoomValue)
+    {
+            distanceOrbit -= zoomStep * zoomValue;
+            distanceVector = new Vector3(0, 0, -distanceOrbit);
+            Rotate(xCursor, yCursor);
+    }
+
+    void ZoomOut(float zoomValue)
+    {
+            distanceOrbit += zoomStep * zoomValue;
+            distanceVector = new Vector3(0, 0, -distanceOrbit);
+            Rotate(xCursor, yCursor);
+    }
+
+    void Rotate(float x, float y)
+    {
+        Quaternion rotation = Quaternion.Euler(y, x, my_camera.transform.rotation.z);
+
+        Vector3 position = rotation * distanceVector;
+
+        my_camera.transform.rotation = rotation;
+        my_camera.transform.position = position;
     }
 }

@@ -4,21 +4,24 @@ using UnityEngine;
 
 public class MyScript : MonoBehaviour
 {
+    GameObject[] cubes;
     // Start is called before the first frame update
     void Start()
     {
-        
+        cubes = GameObject.FindGameObjectsWithTag("Cube");
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.touchCount > 0)
-            transform.position += Vector3.up;
-        List<Touch> touches = new List<Touch>(Input.touches);
-        foreach(Touch touch in touches)
+
+    }
+
+    public void ShowHide()
+    {
+        for(int i = 0; i < cubes.Length; i++)
         {
-            print(touch.rawPosition + " " + touch.type + " " + touch.phase);
+            cubes[i].SetActive(!cubes[i].activeSelf);
         }
     }
 }
